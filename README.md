@@ -89,6 +89,10 @@ The soil water model is checked against published results in [`validation/`](val
 
 The bucket does not capture the effects of the vertical soil profile. These are discussed under limitations in the validation notes.
 
+![Laio et al. (2001) pdfs reproduced](validation/laio_fig8_pdfs.png)
+
+![Puma et al. (2007) rainfall resolution reproduced](validation/puma_fig5_pdfs.png)
+
 ## Running it
 
 ```

@@ -19,9 +19,19 @@ For a single variety at full canopy cover, `soilwater.py` uses exactly the loss 
 
 Each case is run two ways. The first uses continuous-time Poisson storms, as in the paper. The second uses the `tessera` scheme: each day's storms are summed and added at the start of the day, followed by one day of losses. Both reproduce the analytical results.
 
+**Drydown** (cf. Laio et al. 2001, Fig. 7). Lines: closed form. Dots: the model with daily steps.
+
+![Drydown](laio_fig7_drydown.png)
+
+**Steady-state soil moisture pdfs** (cf. Fig. 8). Smooth lines: analytical pdf. Thin steps: the model.
+
 ![Steady-state pdfs](laio_fig8_pdfs.png)
 
-Files: `laio_fig7_drydown.png`, `laio_fig8_pdfs.png`, `laio_fig10_waterbalance.png`, `laio2001_results.csv`.
+**Water balance** (cf. Fig. 10a). Lines: analytical. Dots: the model.
+
+![Water balance](laio_fig10_waterbalance.png)
+
+Numbers for every case are in `laio2001_results.csv`.
 
 ## 2. Puma et al. (2007): is daily rainfall enough?
 
@@ -46,9 +56,15 @@ The experiment is repeated here with the bucket model:
 
 The bucket reproduces the paper's main result. Daily rainfall, including the `tessera` daily scheme, gives the same soil moisture distribution as 15-minute rainfall, and coarser rainfall makes the distribution too narrow, more so in Colorado than in Texas.
 
+**Soil moisture pdfs for 15-minute and aggregated rainfall** (layout of Puma et al. 2007, Fig. 5).
+
 ![Rainfall resolution](puma_fig5_pdfs.png)
 
-Files: `puma_fig5_pdfs.png`, `puma_resolution.png`, `puma2007_results.csv`.
+**Error against aggregation, and the temporal infiltration index.**
+
+![Error and index](puma_resolution.png)
+
+Numbers for every case are in `puma2007_results.csv`.
 
 ## Limitations and future work
 
