@@ -1,5 +1,7 @@
 # tessera
 
+<p align="center"><img src="assets/tessera-icon.svg" alt="TESSERA model — crop diversity mosaic logo" width="240"></p>
+
 Do crop variety mixtures stabilize food supply beyond the field?
 
 `tessera` is a prototype model that follows the effect of crop mixtures from a single field up to regional food supply and local grain markets. A tessera is one tile in a mosaic: each farm is a tile, and the question is whether the whole picture holds together in a bad year.
