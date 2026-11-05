@@ -69,7 +69,27 @@ $L$ is the parameter that matters most for the regional results: in the example 
 
 With these values a farm gets about 555 mm a year on about 53 rain days, split roughly evenly between the two seasons, and the regional mean varies by about 94 mm from year to year. The values are illustrative and have not been fitted to any record.
 
-**Limitations.** Apart from the shifts by season, ENSO and seasonal anomaly, rainy days occur independently from one day to the next, so the model does not reproduce the persistence of wet and dry spells seen in real records. Dry spells during flowering matter for the mixture question, so the first step at a real site would be to fit the storm rates, depths, spell statistics and correlation lengths to daily rainfall such as CHIRPS. Clustered models such as Neyman–Scott are an option, but Puma et al. (2007) found that the simpler rectangular pulses model, with parameters fitted to daily data, predicts soil moisture and transpiration about as well.
+**Relation to physically based space-time storm models.** A line of work starting with Rodriguez-Iturbe et al. (1986) represents rainfall explicitly as rain cells scattered in space and time, so that the spatial correlation of rainfall follows from how much two points share the same cells. Two versions are closest to `tessera`:
+
+- In Rodriguez-Iturbe et al. (2006), each storm is a single circular cell; cells arrive as a Poisson process in space and time with random radius, duration and intensity. The paper drives a point soil water balance with this rainfall and derives the spatial correlation of soil moisture analytically.
+- Northrop (1998) adds clustering and movement. Storm centres arrive as a Poisson process; each storm produces a random number of elliptical cells clustered around its centre in space and time; and the whole storm moves. Fitted to radar data, the clustered model reproduces observed rainfall fields much better than a model of single cells, with cells of about 23 km² lasting about 40 minutes inside storms of about 300 km² lasting a few hours.
+
+`tessera` relates to these models at two scales:
+
+- **Storms.** The copula on daily storm counts, with correlation length $L_{day}$, is a statistical stand-in for overlapping rain cells and storms. It gives short-range correlation of a similar size (here 20 km, comparable to the cell radii of about 12 to 17 km fitted by Rodriguez-Iturbe et al. 2006 and the storm areas fitted by Northrop 1998), but it does not represent the geometry, clustering or movement of cells within a day.
+- **Seasons.** `tessera` adds a layer those models do not have: seasonal anomalies and ENSO, correlated over the much longer length $L$. The storm-cell models describe rainfall that is statistically stationary within a season, so whole regions do not have wet or dry seasons together. Northrop (1998) notes that simulating longer periods would need an extra layer of clustering for the occurrence of rain events, and seasonality; the seasonal layer of `tessera` is a simple statistical version of that layer.
+
+We chose this approach for three reasons.
+
+1. **The question is about seasons, not storms.** Food supply depends on whether farms across a region have their bad seasons in the same years. That is set by the seasonal layer, so that is where the model needs most detail.
+2. **The model steps once a day.** Cells lasting tens of minutes and storms lasting a few hours are averaged out in a daily total, and Puma et al. (2007) showed that daily rainfall reproduces root-zone soil moisture and transpiration. Correlated daily totals are enough at this resolution.
+3. **The parameters can be estimated where the study sites are.** Storm rates, depths and the two correlation lengths can be fitted to daily gridded rainfall such as CHIRPS. The cell models need gauge networks or radar at kilometre and minute resolution, which are rarely available at the study sites, and fitting them is computationally demanding and can give quite different parameter sets that fit equally well (Northrop 1998).
+
+If site data showed that storm-scale structure matters for yields, a clustered cell model like that of Northrop (1998) would be the natural replacement for the copula layer, since clustering clearly improves on single cells.
+
+Rodriguez-Iturbe et al. (2006) also give independent support for a central result of the example runs. They found that differences in vegetation between neighboring points matter for soil moisture variability at small scales, while at scales above about 1 km² the structure of rainfall controls it. In `tessera`, the rainfall correlation length sets regional synchrony and the choice of varieties shifts it only modestly.
+
+**Limitations.** Apart from the shifts by season, ENSO and seasonal anomaly, rainy days occur independently from one day to the next, so the model does not reproduce the persistence of wet and dry spells seen in real records. Dry spells during flowering matter for the mixture question, so the first step at a real site would be to fit the storm rates, depths, spell statistics and correlation lengths to daily rainfall such as CHIRPS. The storm-cell models above would not fix this, because they cluster rain within storms over hours rather than across days. A model for the occurrence of rainy days with persistence from one day to the next would be the more direct fix. Clustered temporal models such as Neyman–Scott are also an option at a single site, but Puma et al. (2007) found that the simpler rectangular pulses model, with parameters fitted to daily data, predicts soil moisture and transpiration about as well.
 
 #### Yields
 
@@ -184,9 +204,15 @@ Doorenbos, J., and Kassam, A. H. (1979). *Yield Response to Water*. FAO Irrigati
 
 Laio, F., Porporato, A., Ridolfi, L., and Rodriguez-Iturbe, I. (2001). Plants in water-controlled ecosystems: active role in hydrologic processes and response to water stress. II. Probabilistic soil moisture dynamics. *Advances in Water Resources*, 24(7), 707–723.
 
+Northrop, P. (1998). A clustered spatial-temporal model of rainfall. *Proceedings of the Royal Society of London A*, 454(1975), 1875–1888. https://doi.org/10.1098/rspa.1998.0238
+
 Puma, M. J., Rodriguez-Iturbe, I., Celia, M. A., and Guswa, A. J. (2007). Implications of rainfall temporal resolution for soil-moisture and transpiration modeling. *Transport in Porous Media*, 68, 37–67.
 
+Rodriguez-Iturbe, I., Cox, D. R., and Eagleson, P. S. (1986). Spatial modelling of total storm rainfall. *Proceedings of the Royal Society of London A*, 403(1824), 27–50. https://doi.org/10.1098/rspa.1986.0002
+
 Rodriguez-Iturbe, I., Porporato, A., Ridolfi, L., Isham, V., and Cox, D. R. (1999). Probabilistic modelling of water balance at a point: the role of climate, soil and vegetation. *Proceedings of the Royal Society A*, 455(1990), 3789–3805.
+
+Rodriguez-Iturbe, I., Isham, V., Cox, D. R., Manfreda, S., and Porporato, A. (2006). Space-time modeling of soil moisture: stochastic rainfall forcing with heterogeneous vegetation. *Water Resources Research*, 42, W06D05. https://doi.org/10.1029/2005WR004497
 
 Wang, S., and Loreau, M. (2014). Ecosystem stability in space: α, β and γ variability. *Ecology Letters*, 17(8), 891–901.
 
