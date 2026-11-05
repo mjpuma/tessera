@@ -72,11 +72,14 @@ def rpp_rain(n_days, lam, mu_L, mu_X, n_real, seed):
     n_steps = n_days * STEPS_PER_DAY
     rain = np.zeros((n_real, n_steps))
     for r in range(n_real):
+        # each realization: a Poisson number of rain pulses, each with a random start,
+        # duration (exponential, mean mu_L) and intensity (exponential, mean mu_X)
         k = rng.poisson(lam * n_days)
         t0 = rng.uniform(0, n_days, k)
         dur = rng.exponential(mu_L, k)
         x = rng.exponential(mu_X, k)
         t1 = np.minimum(t0 + dur, n_days)
+        # add each pulse's depth to the 15-minute steps it overlaps
         b0 = (t0 / DT).astype(int)
         b1 = np.minimum((t1 / DT).astype(int), n_steps - 1)
         one = b0 == b1
@@ -122,6 +125,7 @@ def run(rain, site, scheme="15 min", spin_days=33):
     s_samples, t_ratio = [], []
     tot = dict(infil=0.0, transp=0.0)
     if scheme == "tessera":
+        # tessera scheme: sum each day's rain, add it at the start of the day, then one day of losses
         daily = rain.reshape(n_real, -1, STEPS_PER_DAY).sum(-1)
         for d in range(daily.shape[1]):
             room = nzr * (1 - s)
@@ -137,6 +141,8 @@ def run(rain, site, scheme="15 min", spin_days=33):
                 t_ratio.append((tr1 + tr2).ravel() / (p["et_max"] - p["e_w"]))
                 tot["infil"] += inf.sum(); tot["transp"] += (tr1 + tr2).sum()
     else:
+        # 15-minute scheme: rain and diurnal evapotranspiration every 15 minutes; water that
+        # cannot enter a saturated soil ponds at the surface and infiltrates later (no runoff)
         for k in range(n_steps):
             water = rain[:, k] + pond
             room = nzr * (1 - s)
@@ -162,6 +168,7 @@ def main():
     for si, (name, site) in enumerate(SITES.items()):
         rain15 = rpp_rain(site["n_days"], site["lam"], site["mu_L"], site["mu_X"], n_real=100, seed=7 + si)
         ref = None
+        # run every aggregation level, plus the tessera daily scheme, on the same rainfall
         for lab, k in LEVELS + [("tessera daily scheme", None)]:
             r = rain15 if k in (1, None) else aggregate(rain15, k)
             S, TR, frac = run(r, site, scheme="tessera" if k is None else "15 min")
@@ -169,6 +176,8 @@ def main():
                 ref = S
             kk = 96 if k is None else k
             intens = aggregate(rain15, kk) if kk > 1 else rain15
+            # temporal infiltration index of Puma et al. (2007), Eq. 24, using the mean intensity
+            # of rain at this aggregation level
             mu_x = (intens[intens > 0] / DT).mean()                       # cm/day while raining
             ks = np.sort(S); kr = np.sort(ref)
             grid = np.linspace(0, 1, 2001)

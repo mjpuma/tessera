@@ -9,6 +9,17 @@ from mixtures_model import VARIETIES
 
 
 def make_figures(run, SCEN, COLORS, df=None):
+    """Draw the two figures.
+
+    run, SCEN, COLORS : the run function, landscapes and colors from run_experiments.py
+    df                : the results table (read from results.csv if not given)
+
+    figures/fig1_mechanism.png  soil moisture in one field for one year, with the
+                                flowering window of each landrace
+    figures/fig2_scenarios.png  four panels: yield against shortfall risk, synchrony against
+                                rainfall correlation length, food gap of net buyers against
+                                market integration, and the break-even yield gap
+    """
     os.makedirs("figures", exist_ok=True)
     if df is None:
         df = pd.read_csv("results.csv")
@@ -18,16 +29,19 @@ def make_figures(run, SCEN, COLORS, df=None):
                          "grid.color": "#e6e6e6", "grid.linewidth": 0.6})
 
     # Figure 1: the mechanism, one field in one year
+    # Re-run the landrace mixture keeping daily soil moisture, then plot field 0 in year 12.
     r = run(SCEN["Landrace mixture"], L=100, seed=7, keep_s=True)
     yr = 12
     d0, d1 = 365 * yr, 365 * (yr + 1)
     fig, ax = plt.subplots(figsize=(8, 3.6))
     days = np.arange(365)
+    # rain as bars on a second axis, scaled so the bars stay low and do not hide the soil moisture line
     ax2 = ax.twinx()
     ax2.bar(days, r["rain"][0, d0:d1], color="#9db7d6", width=1.0, label="Rain (mm/day)")
     ax2.set_ylim(0, 4 * max(1.0, r["rain"][0, d0:d1].max())); ax2.set_ylabel("Rain (mm/day)"); ax2.grid(False); ax2.spines["top"].set_visible(False)
     ax.plot(days, r["s"][0, d0:d1], color="#333333", lw=1.6, zorder=5)
     ax.set_zorder(ax2.get_zorder() + 1); ax.patch.set_visible(False)
+    # flowering window of each landrace in both seasons, drawn as a bar near the top
     vcol = {"LR_early": "#2a78d6", "LR_mid": "#eb6834", "LR_late": "#1baf7a"}
     for k, (nm, c) in enumerate(vcol.items()):
         v = VARIETIES[nm]
@@ -46,6 +60,7 @@ def make_figures(run, SCEN, COLORS, df=None):
     fig, axs = plt.subplots(2, 2, figsize=(10, 7.6))
     sc = df[(df.experiment == "scenarios_by_L") & (df.L_km == 100)]
 
+    # Panel A: each landscape as one point, mean yield against share of household-years in shortfall
     ax = axs[0, 0]
     for _, row in sc.iterrows():
         ax.scatter(row.p_short, row.mean_yield_t_per_ha, s=60, color=COLORS[row.scenario], edgecolor="white", lw=1.5, zorder=3)
@@ -55,6 +70,7 @@ def make_figures(run, SCEN, COLORS, df=None):
     ax.set_title("A. Average yield against shortfall risk", loc="left", fontsize=10)
     ax.set_xlim(left=0, right=sc.p_short.max() * 1.6)
 
+    # Panel B: synchrony phi against rainfall correlation length, one line per landscape
     ax = axs[0, 1]
     byL = df[df.experiment == "scenarios_by_L"]
     for name, c in COLORS.items():
@@ -65,6 +81,7 @@ def make_figures(run, SCEN, COLORS, df=None):
     ax.set_title("B. Synchrony across farms", loc="left", fontsize=10)
     ax.legend(fontsize=7.5, frameon=False, loc="upper left")
 
+    # Panel C: mean food gap of net-buyer households against market integration theta
     ax = axs[1, 0]
     mt = df[df.experiment == "markets_by_theta"]
     for name, c in COLORS.items():
@@ -75,6 +92,7 @@ def make_figures(run, SCEN, COLORS, df=None):
     ax.set_title("C. Food gap of net-buyer households", loc="left", fontsize=10)
     ax.legend(fontsize=7.5, frameon=False, loc="upper right")
 
+    # Panel D: shortfall risk of uniform improved stands as the improved variety's yield potential changes
     ax = axs[1, 1]
     be = df[df.experiment == "breakeven_ymax"]
     for name in ("Uniform improved", "Landrace mixture"):

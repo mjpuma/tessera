@@ -61,16 +61,21 @@ def rho(s, soil, p):
 
 
 def analytic_pdf(soil, p, lam, alpha, delta=0.0, n=40000):
-    """Steady-state pdf, Eq. 29, evaluated numerically; returns grid, pdf, cdf."""
+    """Steady-state pdf, Eq. 29, evaluated numerically; returns grid, pdf, cdf.
+
+    Eq. 29: p(s) = C / rho(s) * exp(-gamma s + lambda' * integral of du / rho(u)),
+    with gamma = nZr / alpha and lambda' = lambda exp(-Delta / alpha). The integral is
+    computed cumulatively on a fine grid and C is set so that the pdf integrates to one."""
     nzr = soil.n * soil.z_r
-    gamma = nzr / alpha
-    lam_p = lam * np.exp(-delta / alpha)
+    gamma = nzr / alpha                     # inverse of mean storm depth relative to soil storage
+    lam_p = lam * np.exp(-delta / alpha)    # rate of storms that get past interception
     # grid dense near s_h, where 1/rho is large
     u = np.linspace(0, 1, n)
     s = soil.s_h + (1 - soil.s_h) * (1e-6 + (1 - 1e-6) * u ** 3)
     r = rho(s, soil, p)
     inv = 1.0 / r
     integ = np.concatenate([[0.0], np.cumsum(0.5 * (inv[1:] + inv[:-1]) * np.diff(s))])
+    # work in logs to avoid overflow, then normalize
     logp = -np.log(r) - gamma * s + lam_p * integ
     logp -= logp.max()
     pdf = np.exp(logp)
@@ -132,12 +137,13 @@ def simulate_poisson(soil, p, lam, alpha, delta=0.0, n_chains=200, n_events=3000
     s = np.full(n_chains, 0.5 * (p["s_star"] + soil.s_fc))
     samples = []
     tot = dict(rain=0.0, I=0.0, Q=0.0, ET=0.0, L=0.0, time=0.0, unstressed_time=0.0)
+    # n_chains independent soil columns run side by side; each loop pass is one storm per column
     for k in range(n_events):
-        dt = rng.exponential(1.0 / lam, n_chains)
-        depth = rng.exponential(alpha, n_chains)
-        through = np.maximum(depth - delta, 0.0)
-        s, q = infiltrate(s, through, soil)
-        s_new, tr, ev, lk = drain(s, dt, cov, e_max, s_star, s_w, soil, max_ds=max_ds)
+        dt = rng.exponential(1.0 / lam, n_chains)           # time to the next storm
+        depth = rng.exponential(alpha, n_chains)            # storm depth
+        through = np.maximum(depth - delta, 0.0)            # depth after canopy interception
+        s, q = infiltrate(s, through, soil)                 # storm enters the soil, q runs off
+        s_new, tr, ev, lk = drain(s, dt, cov, e_max, s_star, s_w, soil, max_ds=max_ds)   # dry down until the next storm
         if k >= burn:
             samples.append(s_new.copy())
             tot["rain"] += depth.sum(); tot["I"] += (depth - through).sum(); tot["Q"] += q.sum()
@@ -161,6 +167,7 @@ def simulate_daily(soil, p, lam, alpha, n_chains=200, n_days=3000, burn=365, max
     s = np.full(n_chains, 0.5 * (p["s_star"] + soil.s_fc))
     samples = []
     for d in range(burn + n_days):
+        # the day's rain: a Poisson number of storms, each exponential with mean alpha
         count = rng.poisson(lam, n_chains)
         rain = np.where(count > 0, rng.gamma(np.maximum(count, 1), alpha), 0.0)
         s, _ = infiltrate(s, rain, soil)
