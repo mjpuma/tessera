@@ -2,8 +2,9 @@
 Prototype model: crop mixtures, yield stability and regional food supply.
 
 Implements appendix sections A1 to A3 of "Crop Mixtures and Regional Food Supply":
-  A1  daily stochastic soil water balance per field, shared by all varieties in the
-      field, with Poisson storms whose rate varies by season, ENSO and place;
+  A1  daily stochastic soil water balance per field (soilwater.py; the loss function of
+      Laio et al. 2001, weighted by the canopy cover of each variety), shared by all
+      varieties in the field, with Poisson storms whose rate varies by season, ENSO and place;
       stage-based yield response (Doorenbos and Kassam); correlated pest and
       disease losses that depend on shared varieties.
   A2  Wang and Loreau (2014) partition of regional variability:
@@ -16,7 +17,8 @@ varieties). Nothing here is calibrated. Units: mm, days, t/ha, USD/t.
 """
 from dataclasses import dataclass, field
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, poisson
+from soilwater import SoilParams, infiltrate, drain
 
 # --------------------------------------------------------------------------
 # Parameters
@@ -29,7 +31,7 @@ class Variety:
     y_max: float         # t/ha with no water stress
     s_star: float        # soil moisture where transpiration starts to fall
     s_w: float           # wilting point
-    t_max: float         # mm/day maximum transpiration at full cover
+    e_max: float         # mm/day maximum evapotranspiration at full cover (Laio E_max)
     ky: tuple = (0.20, 0.55, 0.45)          # yield response: vegetative, flowering, grain fill
     stage_bounds: tuple = (0.45, 0.65)      # stage boundaries as fraction of season
 
@@ -42,22 +44,13 @@ VARIETIES = {
 }
 
 
-@dataclass
-class Soil:
-    n: float = 0.43       # porosity
-    z_r: float = 500.0    # root zone depth, mm
-    k_s: float = 40.0     # saturated drainage rate, mm/day
-    c: float = 11.0       # drainage exponent
-    e_max: float = 1.0    # maximum soil evaporation, mm/day
-
-    @property
-    def nzr(self):
-        return self.n * self.z_r
+# Sandy loam, after Laio et al. (2001), Table 1, in mm and days
+Soil = SoilParams
 
 
 @dataclass
 class Climate:
-    # daily storm probability outside / inside the two rainy seasons
+    # storm arrival rate (storms per day) outside / inside the two rainy seasons
     p_base: float = 0.04
     p_long: float = 0.30      # long rains, days 60-151
     p_short: float = 0.28     # short rains, days 274-365
@@ -129,14 +122,16 @@ def generate_rain(xy, n_years, clim: Climate, seed=7):
     p_short = clim.p_short * np.exp(clim.load_short * e[None, :] + eta_short)
     p[:, in_long] = p_long[:, year[in_long]]
     p[:, in_short] = p_short[:, year[in_short]]
-    p = np.clip(p, 0.0, 0.95)
+    p = np.clip(p, 0.0, 2.0)
 
-    # daily occurrence: Gaussian copula with short correlation length
+    # daily storm counts: Poisson with rate p, spatially linked through a Gaussian copula
+    # with a short correlation length; each storm has an exponential depth with mean h,
+    # so a day's total is the daily aggregate of a marked Poisson process (Laio et al. 2001)
     chol_d = _chol_exp(xy, clim.L_day)
     z = chol_d @ rng.standard_normal((nf, n_days))
-    occur = z < norm.ppf(p)
-    depth = rng.exponential(clim.h, size=(nf, n_days))
-    return np.where(occur, depth, 0.0), e
+    count = poisson.ppf(norm.cdf(z), p)
+    depth = rng.gamma(np.maximum(count, 1.0), clim.h)
+    return np.where(count > 0, depth, 0.0), e
 
 
 # --------------------------------------------------------------------------
@@ -166,10 +161,10 @@ def _crop_calendar(var: Variety, n_years):
     return crop, stage, kc, k
 
 
-def simulate(rain, shares, soil: Soil, varieties=VARIETIES, s0=0.3):
-    """Run the daily water balance.
+def simulate(rain, shares, soil: Soil, varieties=VARIETIES, s0=0.3, max_ds=0.02):
+    """Run the daily water balance (soilwater.py).
 
-    rain   : (n_fields, n_days) mm
+    rain   : (n_fields, n_days) mm, applied as a pulse at the start of each day
     shares : (n_fields, n_varieties) planting shares c_v, rows sum to 1
     Returns per-variety per-season yields before disease, soil moisture,
     and water-balance totals.
@@ -184,7 +179,7 @@ def simulate(rain, shares, soil: Soil, varieties=VARIETIES, s0=0.3):
     n_crops = min(c[3] for c in cal)
     s_star = np.array([v.s_star for v in vs])
     s_w = np.array([v.s_w for v in vs])
-    t_max = np.array([v.t_max for v in vs])
+    e_max = np.array([v.e_max for v in vs])
 
     t_act = np.zeros((nf, nv, n_crops, 3))
     t_pot = np.zeros((nf, nv, n_crops, 3))
@@ -199,31 +194,17 @@ def simulate(rain, shares, soil: Soil, varieties=VARIETIES, s0=0.3):
 
     s_start = s.copy()
     for t in range(n_days):
-        # rain pulse with saturation excess runoff
-        room = nzr * (1.0 - s)
-        infil = np.minimum(rain[:, t], room)
-        totals["runoff"] += (rain[:, t] - infil).sum()
-        s = s + infil / nzr
+        s, runoff = infiltrate(s, rain[:, t], soil)
+        totals["runoff"] += runoff.sum()
 
-        # transpiration by variety (shared bucket)
-        f = np.clip((s[:, None] - s_w[None, :]) / (s_star - s_w)[None, :], 0.0, 1.0)   # (nf, nv)
         active = crop_idx[:, t] >= 0
-        pot = shares * (t_max * kc_all[:, t] * active)[None, :]                       # (nf, nv)
-        act = pot * f
-        evap = soil.e_max * s
-        drain = soil.k_s * s ** soil.c
-        loss = act.sum(1) + evap + drain
-        # do not remove more water than is there
-        scale = np.minimum(1.0, s * nzr / np.maximum(loss, 1e-12))
-        act *= scale[:, None]
-        evap *= scale
-        drain *= scale
-        s = s - (act.sum(1) + evap + drain) / nzr
-        s = np.clip(s, 0.0, 1.0)
+        cov = shares * (kc_all[:, t] * active)[None, :]                        # (nf, nv)
+        s, act, evap, leak = drain(s, 1.0, cov, e_max, s_star, s_w, soil, max_ds=max_ds)
+        pot = cov * (e_max - soil.e_w)                                          # transpiration with no stress
 
         totals["transp"] += act.sum()
         totals["evap"] += evap.sum()
-        totals["drain"] += drain.sum()
+        totals["drain"] += leak.sum()
         for j in np.nonzero(active)[0]:
             k = crop_idx[j, t]
             if k < n_crops:

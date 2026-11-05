@@ -12,18 +12,22 @@ The model has three linked parts. Field $i$ is a farm, $t$ is a year and $v$ is 
 
 ### 1. Soil water and yields
 
-Each field has a daily stochastic soil water balance in the tradition of Rodriguez-Iturbe et al. (1999) and Laio et al. (2001):
+Each field has a daily stochastic soil water balance in the tradition of Rodriguez-Iturbe et al. (1999) and Laio et al. (2001), in `soilwater.py`:
 
-$$nZ_r \frac{ds}{d\tau} = I(\tau) - \sum_v c_v\,T_v(s) - E(s) - \Lambda(s)$$
+$$nZ_r \frac{ds}{d\tau} = I(\tau) - \sum_v c_v\left[E_w\,r_v(s) + (E_{max,v} - E_w)\,f_v(s)\right] - (1 - C)\,E_b\,b(s) - \Lambda(s)$$
 
 - $s$ is relative soil moisture, from 0 (dry) to 1 (saturated), and $\tau$ is the day.
 - $n$ is soil porosity and $Z_r$ is root zone depth (mm), so $nZ_r$ is the water the root zone can hold.
-- $I$ is rain that infiltrates. Storms arrive as a Poisson process with exponentially distributed depths, and rain beyond saturation runs off.
-- $c_v$ is the planting share of variety $v$ in the field (1 for a uniform stand). All varieties in a field draw on the same soil water.
-- $T_v$ is transpiration by variety $v$. It is at its maximum when $s$ is above the variety's stress threshold $s^*_v$, falls linearly below it, and stops at the wilting point $s_{w,v}$.
-- $E$ is soil evaporation and $\Lambda$ is leakage (drainage below the root zone).
+- $I$ is rain that infiltrates. Each day's rain is the total of a Poisson number of storms with exponentially distributed depths, applied at the start of the day. Rain beyond saturation runs off.
+- $c_v$ is the canopy cover of variety $v$: its planting share times its cover at that point in the season. $C = \sum_v c_v$. All varieties in a field draw on the same soil water.
+- $f_v(s)$ is the stomatal control of transpiration. It is 1 above the variety's stress threshold $s^*_v$, falls linearly to 0 at its wilting point $s_{w,v}$, and $E_{max,v}$ is its maximum evapotranspiration.
+- $r_v(s)$ ramps evaporation and cuticular losses $E_w$ from 0 at the hygroscopic point $s_h$ to 1 at $s_{w,v}$.
+- $E_b\,b(s)$ is evaporation from bare soil, rising linearly from $s_h$ to field capacity $s_{fc}$.
+- $\Lambda(s) = K_s\left(e^{\beta(s - s_{fc})} - 1\right) / \left(e^{\beta(1 - s_{fc})} - 1\right)$ for $s > s_{fc}$ is leakage below the root zone.
 
-The daily chance of a storm varies by season, by year with ENSO, and from place to place. Year-to-year anomalies are correlated between fields according to $e^{-d_{ij}/L}$, where $d_{ij}$ is the distance between fields and $L$ is the **rainfall correlation length** (km). A short $L$ means neighboring farms often have different rainfall.
+For a single variety at full cover ($c_v = 1$) this is exactly the loss function of Laio et al. (2001), Eq. 16. Losses are integrated with adaptive second-order sub-steps. The scheme is checked against the published analytical results in [`validation/`](validation/).
+
+The storm rate varies by season, by year with ENSO, and from place to place. Year-to-year anomalies are correlated between fields according to $e^{-d_{ij}/L}$, where $d_{ij}$ is the distance between fields and $L$ is the **rainfall correlation length** (km). A short $L$ means neighboring farms often have different rainfall.
 
 Each variety's yield falls with its transpiration deficit in each growth stage (vegetative, flowering, grain fill), weighted by yield response factors $K_y$ (Doorenbos and Kassam 1979). Varieties differ in maturity, so their flowering windows fall on different days. Pest and disease losses are more correlated between fields that grow the same varieties.
 
@@ -76,6 +80,15 @@ A fourth part, seed exchange networks and the spread of new varieties, is descri
 
 These runs use 64 farms over 60 years with 3 rainfall ensembles, and five landscapes: all improved variety, all landrace mixture, a mosaic of single landraces, half improved and half mixture, and the improved variety added to the mixture.
 
+## Validation
+
+The soil water model is checked against published results in [`validation/`](validation/):
+
+- **Laio et al. (2001).** For a single variety at full cover the model is their model, and it reproduces their closed-form drydown (Eq. 20), steady-state soil moisture pdfs (Eq. 29) and water balance (Eqs. 36-44).
+- **Puma et al. (2007).** Repeating their rainfall-resolution experiment with the bucket shows that daily rainfall, and the daily scheme used here, give the same root-zone soil moisture distribution as 15-minute rainfall, while 2-week and monthly rainfall do not.
+
+The bucket does not capture the effects of the vertical soil profile. These are discussed under limitations in the validation notes.
+
 ## Running it
 
 ```
@@ -89,7 +102,9 @@ This writes `results.csv` and the figures in `figures/`. A full run takes about 
 
 | File | Contents |
 |---|---|
-| `mixtures_model.py` | The model: rainfall generator, soil water balance, yields, disease, synchrony, markets |
+| `soilwater.py` | Point soil water balance (loss function of Laio et al. 2001) and its integrator |
+| `mixtures_model.py` | The model: rainfall generator, yields, disease, synchrony, markets |
+| `validation/` | Checks of the soil water model against Laio et al. (2001) and Puma et al. (2007) |
 | `run_experiments.py` | Scenario experiments across rainfall correlation length, market integration and yield potential |
 | `make_figures.py` | Figures from `results.csv` |
 | `results.csv` | Results of the example runs |
@@ -107,7 +122,7 @@ This writes `results.csv` and the figures in `figures/`. A full run takes about 
 
 ## Known simplifications
 
-- One root zone, so differences in rooting depth between varieties are not represented.
+- One well-mixed root zone. Vertical redistribution and differences in rooting depth between varieties are not represented. A one-dimensional soil water flow model such as [SoilWaterFlow](https://github.com/mjpuma/SoilWaterFlow) could be used as a benchmark at a few sites (see [`validation/`](validation/)).
 - Fixed planting dates. In practice farmers wait for the rains to start.
 - Varieties in a mixture interact only through shared soil water. There is no light competition and no disease dilution within the field.
 - One regional market with a simple storage rule. The competitive storage model would be the standard alternative.
@@ -120,6 +135,8 @@ Deaton, A. (1989). Rice prices and income distribution in Thailand: a non-parame
 Doorenbos, J., and Kassam, A. H. (1979). *Yield Response to Water*. FAO Irrigation and Drainage Paper 33. Rome: FAO.
 
 Laio, F., Porporato, A., Ridolfi, L., and Rodriguez-Iturbe, I. (2001). Plants in water-controlled ecosystems: active role in hydrologic processes and response to water stress. II. Probabilistic soil moisture dynamics. *Advances in Water Resources*, 24(7), 707–723.
+
+Puma, M. J., Rodriguez-Iturbe, I., Celia, M. A., and Guswa, A. J. (2007). Implications of rainfall temporal resolution for soil-moisture and transpiration modeling. *Transport in Porous Media*, 68, 37–67.
 
 Rodriguez-Iturbe, I., Porporato, A., Ridolfi, L., Isham, V., and Cox, D. R. (1999). Probabilistic modelling of water balance at a point: the role of climate, soil and vegetation. *Proceedings of the Royal Society A*, 455(1990), 3789–3805.
 
