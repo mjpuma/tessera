@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" role="img" aria-label="TESSERA crop diversity mosaic logo">
+<rect width="520" height="520" rx="72" fill="#F6F1E6"/>
+<g>
+<rect x="34" y="34" width="106" height="106" rx="17" fill="#829854"/>
+<rect x="149" y="34" width="106" height="106" rx="17" fill="#13766E"/>
+<rect x="264" y="34" width="106" height="106" rx="17" fill="#DAA340"/>
+<rect x="379" y="34" width="106" height="106" rx="17" fill="#829854"/>
+<rect x="34" y="149" width="106" height="106" rx="17" fill="#C16E4C"/>
+<rect x="149" y="149" width="106" height="106" rx="17" fill="#13766E"/>
+<rect x="264" y="149" width="106" height="106" rx="17" fill="#13766E"/>
+<rect x="379" y="149" width="106" height="106" rx="17" fill="#DDA33A"/>
+<rect x="34" y="264" width="106" height="106" rx="17" fill="#13766E"/>
+<rect x="149" y="264" width="106" height="106" rx="17" fill="#DDA33A"/>
+<rect x="264" y="264" width="106" height="106" rx="17" fill="#829854"/>
+<rect x="379" y="264" width="106" height="106" rx="17" fill="#C16E4C"/>
+<rect x="34" y="379" width="106" height="106" rx="17" fill="#829854"/>
+<rect x="149" y="379" width="106" height="106" rx="17" fill="#C16E4C"/>
+<rect x="264" y="379" width="106" height="106" rx="17" fill="#13766E"/>
+<rect x="379" y="379" width="106" height="106" rx="17" fill="#829854"/>
+</g>
+<g fill="#FFF9ED" stroke="#FFF9ED" stroke-linecap="round" stroke-linejoin="round">
+<!-- Sorghum: full panicle and long arching leaves -->
+<path d="M262 273 L262 174" stroke-width="9" fill="none"/>
+<path d="M262 253 Q234 200 190 189 Q222 189 260 221 Z" stroke="none"/>
+<path d="M264 245 Q291 195 337 181 Q298 189 265 221 Z" stroke="none"/>
+<ellipse cx="262" cy="64" rx="8" ry="12" stroke="none"/>
+<ellipse cx="247" cy="82" rx="8" ry="12" stroke="none"/>
+<ellipse cx="277" cy="82" rx="8" ry="12" stroke="none"/>
+<ellipse cx="238" cy="104" rx="8" ry="12" stroke="none"/>
+<ellipse cx="260" cy="104" rx="8" ry="12" stroke="none"/>
+<ellipse cx="286" cy="104" rx="8" ry="12" stroke="none"/>
+<ellipse cx="233" cy="127" rx="8" ry="12" stroke="none"/>
+<ellipse cx="251" cy="127" rx="8" ry="12" stroke="none"/>
+<ellipse cx="274" cy="127" rx="8" ry="12" stroke="none"/>
+<ellipse cx="293" cy="127" rx="8" ry="12" stroke="none"/>
+<ellipse cx="242" cy="150" rx="8" ry="12" stroke="none"/>
+<ellipse cx="263" cy="150" rx="8" ry="12" stroke="none"/>
+<ellipse cx="282" cy="150" rx="8" ry="12" stroke="none"/>
+<ellipse cx="261" cy="171" rx="8" ry="12" stroke="none"/>
+<!-- Maize ear with orderly kernels and husk -->
+<path d="M138 476 L138 362" stroke-width="8" fill="none"/>
+<path d="M136 448 Q110 389 65 384 Q91 410 132 473 Z" stroke="none"/>
+<path d="M141 447 Q171 392 211 391 Q183 416 145 473 Z" stroke="none"/>
+<path d="M111 381 Q106 331 118 301 Q138 284 153 306 Q163 333 156 380 Z" stroke="none"/>
+</g>
+<g fill="#13766E">
+<rect x="116" y="310" width="9" height="10" rx="2"/>
+<rect x="128" y="310" width="9" height="10" rx="2"/>
+<rect x="140" y="310" width="9" height="10" rx="2"/>
+<rect x="116" y="323" width="9" height="10" rx="2"/>
+<rect x="128" y="323" width="9" height="10" rx="2"/>
+<rect x="140" y="323" width="9" height="10" rx="2"/>
+<rect x="116" y="336" width="9" height="10" rx="2"/>
+<rect x="128" y="336" width="9" height="10" rx="2"/>
+<rect x="140" y="336" width="9" height="10" rx="2"/>
+<rect x="116" y="349" width="9" height="10" rx="2"/>
+<rect x="128" y="349" width="9" height="10" rx="2"/>
+<rect x="140" y="349" width="9" height="10" rx="2"/>
+<rect x="116" y="362" width="9" height="10" rx="2"/>
+<rect x="128" y="362" width="9" height="10" rx="2"/>
+<rect x="140" y="362" width="9" height="10" rx="2"/>
+</g>
+<g fill="none" stroke="#FFF9ED" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+<!-- Cereal sprig, precise alternating grains -->
+<path d="M382 481 Q392 416 414 341"/>
+</g>
+<g fill="#FFF9ED">
+<ellipse cx="406" cy="355" rx="9" ry="20" transform="rotate(-35 406 355)"/>
+<ellipse cx="424" cy="370" rx="9" ry="20" transform="rotate(35 424 370)"/>
+<ellipse cx="396" cy="387" rx="9" ry="20" transform="rotate(-35 396 387)"/>
+<ellipse cx="415" cy="403" rx="9" ry="20" transform="rotate(35 415 403)"/>
+<ellipse cx="385" cy="419" rx="9" ry="20" transform="rotate(-35 385 419)"/>
+<ellipse cx="404" cy="438" rx="9" ry="20" transform="rotate(35 404 438)"/>
+<path d="M389 455 Q417 435 444 443 Q416 451 386 478 Z"/>
+</g>
+</svg>
