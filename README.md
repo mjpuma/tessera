@@ -18,7 +18,7 @@ $$nZ_r \frac{ds}{d\tau} = I(\tau) - \sum_v c_v\left[E_w\,r_v(s) + (E_{max,v} - E
 
 - $s$ is relative soil moisture, from 0 (dry) to 1 (saturated), and $\tau$ is the day.
 - $n$ is soil porosity and $Z_r$ is root zone depth (mm), so $nZ_r$ is the water the root zone can hold.
-- $I$ is rain that infiltrates. Each day's rain is the total of a Poisson number of storms with exponentially distributed depths, applied at the start of the day. Rain beyond saturation runs off.
+- $I$ is rain that infiltrates: each day's rain (see Rainfall below), applied at the start of the day. Rain beyond saturation runs off.
 - $c_v$ is the canopy cover of variety $v$: its planting share times its cover at that point in the season. $C = \sum_v c_v$. All varieties in a field draw on the same soil water.
 - $f_v(s)$ is the stomatal control of transpiration. It is 1 above the variety's stress threshold $s^*_v$, falls linearly to 0 at its wilting point $s_{w,v}$, and $E_{max,v}$ is its maximum evapotranspiration.
 - $r_v(s)$ ramps evaporation and cuticular losses $E_w$ from 0 at the hygroscopic point $s_h$ to 1 at $s_{w,v}$.
@@ -27,7 +27,49 @@ $$nZ_r \frac{ds}{d\tau} = I(\tau) - \sum_v c_v\left[E_w\,r_v(s) + (E_{max,v} - E
 
 For a single variety at full cover ($c_v = 1$) this is exactly the loss function of Laio et al. (2001), Eq. 16. Losses are integrated with adaptive second-order sub-steps. The scheme is checked against the published analytical results in [`validation/`](validation/).
 
-The storm rate varies by season, by year with ENSO, and from place to place. Year-to-year anomalies are correlated between fields according to $e^{-d_{ij}/L}$, where $d_{ij}$ is the distance between fields and $L$ is the **rainfall correlation length** (km). A short $L$ means neighboring farms often have different rainfall.
+#### Rainfall
+
+Rainfall is generated in `generate_rain()` in `mixtures_model.py`. It is a marked Poisson process, the rainfall model of Rodriguez-Iturbe et al. (1999) and Laio et al. (2001), extended in three ways: the storm rate follows the seasons, it shifts from year to year with ENSO, and it is correlated between farms over a set distance. It is built in four layers.
+
+**1. Storms and daily totals.** Storms arrive as a Poisson process with rate $\kappa$ (storms per day), and each storm has an exponentially distributed depth with mean $h$. The model steps once a day, so on day $\tau$ farm $i$ gets a Poisson number of storms, and their total is added to the soil at the start of the day:
+
+$$N_{i,\tau} \sim \text{Poisson}\left(\kappa_i(\tau)\right), \qquad R_{i,\tau} = \sum_{k=1}^{N_{i,\tau}} h_k, \qquad h_k \sim \text{Exponential}(\text{mean } h)$$
+
+A sum of exponential depths is a gamma variable, so $R_{i,\tau}$ is drawn directly as $\text{Gamma}(N_{i,\tau}, h)$. Puma et al. (2007) showed that daily rainfall reproduces the root-zone soil moisture and transpiration given by 15-minute rainfall, which is why a daily step is enough; this is checked again in [`validation/`](validation/).
+
+**2. Seasons.** The storm rate follows the bimodal calendar of semi-arid East Africa: a low base rate $\kappa_0$ in the dry months, and seasonal rates $\kappa_{LR}$ for the long rains (days 60 to 151) and $\kappa_{SR}$ for the short rains (days 274 to 365).
+
+**3. ENSO and seasonal anomalies.** Within each rainy season, the rate for farm $i$ in year $y$ is
+
+$$\kappa_i(\tau, y) = \kappa_{season}\,\exp\left(\lambda_{season} E_y + \eta_{i,y}\right)$$
+
+- $E_y$ is an ENSO index that persists from year to year: $E_y = a E_{y-1} + \sqrt{1 - a^2}\,\varepsilon_y$, with $\varepsilon_y$ standard normal.
+- $\lambda_{season}$ is the ENSO loading. It is positive for the short rains, so El Niño years bring more short-rains storms, and slightly negative for the long rains.
+- $\eta_{i,y}$ is a seasonal anomaly: whether this particular season is wet or dry at this farm, beyond ENSO. It is normally distributed with standard deviation $\sigma_\eta$, and drawn separately for each season.
+
+**4. Space.** Rainfall is correlated between farms at two scales:
+
+- **Seasons.** The anomalies $\eta$ of two farms a distance $d_{ij}$ apart are correlated as $e^{-d_{ij}/L}$. The **rainfall correlation length** $L$ is roughly how far a good or bad season extends. A short $L$ means neighboring farms often have different seasons; a long $L$ means a whole region has a good or bad season together.
+- **Storms.** Daily storm counts are correlated over a shorter distance $L_{day}$, so nearby farms tend to get rain on the same days. This uses a Gaussian copula: correlated standard normal draws $z_{i,\tau}$ are turned into Poisson counts, $N_{i,\tau} = F^{-1}_{\text{Poisson}(\kappa)}\left(\Phi(z_{i,\tau})\right)$, with $\mathrm{corr}(z_i, z_j) = e^{-d_{ij}/L_{day}}$.
+
+$L$ is the parameter that matters most for the regional results: in the example runs, synchrony among farms rises from about 0.15 to 0.58 as $L$ goes from 10 to 1,000 km (panel B of the scenario figure).
+
+| Symbol | Meaning | Value | In `Climate` |
+|---|---|---|---|
+| $\kappa_0$ | storm rate outside the rains | 0.04 per day | `p_base` |
+| $\kappa_{LR}$, $\kappa_{SR}$ | storm rate in the long and short rains | 0.30, 0.28 per day | `p_long`, `p_short` |
+| $h$ | mean storm depth | 9 mm | `h` |
+| $a$ | year-to-year persistence of ENSO | 0.5 | `enso_ar` |
+| $\lambda_{LR}$, $\lambda_{SR}$ | ENSO loading on the long and short rains | -0.10, 0.35 | `load_long`, `load_short` |
+| $\sigma_\eta$ | spread of seasonal anomalies | 0.35 | `sigma_eta` |
+| $L$ | correlation length of seasonal anomalies | 100 km (varied 10 to 1,000) | `L` |
+| $L_{day}$ | correlation length of storms | 20 km | `L_day` |
+
+With these values a farm gets about 555 mm a year on about 53 rain days, split roughly evenly between the two seasons, and the regional mean varies by about 94 mm from year to year. The values are illustrative and have not been fitted to any record.
+
+**Limitations.** Apart from the shifts by season, ENSO and seasonal anomaly, rainy days occur independently from one day to the next, so the model does not reproduce the persistence of wet and dry spells seen in real records. Dry spells during flowering matter for the mixture question, so the first step at a real site would be to fit the storm rates, depths, spell statistics and correlation lengths to daily rainfall such as CHIRPS. Clustered models such as Neyman–Scott are an option, but Puma et al. (2007) found that the simpler rectangular pulses model, with parameters fitted to daily data, predicts soil moisture and transpiration about as well.
+
+#### Yields
 
 Each variety's yield falls with its transpiration deficit in each growth stage (vegetative, flowering, grain fill), weighted by yield response factors $K_y$ (Doorenbos and Kassam 1979). Varieties differ in maturity, so their flowering windows fall on different days. Pest and disease losses are more correlated between fields that grow the same varieties.
 
