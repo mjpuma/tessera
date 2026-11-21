@@ -269,15 +269,22 @@ def simulate(rain, shares, soil: Soil, varieties=VARIETIES, s0=0.3, max_ds=0.02)
 
     totals["ds"] = ((s - s_start) * nzr).sum()       # change in stored water
 
-    # Yield (Doorenbos and Kassam 1979): in each stage, yield falls by K_y times the
-    # relative transpiration deficit (1 - actual / potential); stage effects multiply.
+    y_var = stage_yields(t_act, t_pot, vs)
+    return dict(y_var=y_var, s=s_trace, totals=totals, names=names, n_crops=n_crops)
+
+
+def stage_yields(t_act, t_pot, vs):
+    """Yield (Doorenbos and Kassam 1979): in each stage, yield falls by K_y times the
+    relative transpiration deficit (1 - actual / potential); stage effects multiply.
+
+    t_act, t_pot : (n_fields, n_varieties, n_crops, 3) transpiration by growth stage
+    Returns (n_fields, n_varieties, n_crops) yield per hectare of each variety."""
     ky = np.array([v.ky for v in vs])                         # (nv, 3)
     y_max = np.array([v.y_max for v in vs])
     with np.errstate(invalid="ignore", divide="ignore"):
         ratio = np.where(t_pot > 0, t_act / t_pot, 1.0)
     factor = np.clip(1.0 - ky[None, :, None, :] * (1.0 - ratio), 0.0, 1.0).prod(-1)   # (nf, nv, crops)
-    y_var = y_max[None, :, None] * factor
-    return dict(y_var=y_var, s=s_trace, totals=totals, names=names, n_crops=n_crops)
+    return y_max[None, :, None] * factor
 
 
 def jaccard(shares):

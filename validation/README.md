@@ -5,6 +5,7 @@ These scripts check the point soil water balance in `soilwater.py`, the bucket m
 ```
 python validation/laio2001.py     # about 7 minutes
 python validation/puma2007.py     # about 3 minutes
+python validation/richards_vs_bucket.py   # about 4 minutes; needs SoilWaterFlow
 ```
 
 ## 1. Laio et al. (2001): the analytical solution
@@ -66,6 +67,26 @@ The bucket reproduces the paper's main result. Daily rainfall, including the `te
 
 Numbers for every case are in `puma2007_results.csv`.
 
+## 3. The bucket against a Richards-equation soil column
+
+`richards_vs_bucket.py` runs the full model twice on the same 16 farms and 10 years of rain (one spin-up year discarded), once with the bucket and once with the soil column of [SoilWaterFlow](https://github.com/mjpuma/SoilWaterFlow) (`richards.py`). Everything except the soil is identical: varieties, canopy development, yield response and disease losses. The column is 2 m deep in 25 mm layers with free drainage at the base; each day's rain falls over four hours; each variety takes up water through its own root profile (`ROOTS`, illustrative). The column's soil matches the bucket's where they overlap (porosity, $K_s$, and the Brooks-Corey exponent $b = (\beta - 4)/2$).
+
+| Landscape | Soil model | Mean yield (t/ha) | CV_L | Synchrony φ | Transpiration / rain | Evaporation / rain | Drainage / rain |
+|---|---|---|---|---|---|---|---|
+| Uniform improved | bucket | 2.40 | 0.202 | 0.16 | 0.70 | 0.24 | 0.053 |
+| Uniform improved | Richards | 2.34 | 0.195 | 0.15 | 0.65 | 0.30 | 0.015 |
+| Landrace mixture | bucket | 1.70 | 0.202 | 0.16 | 0.69 | 0.24 | 0.067 |
+| Landrace mixture | Richards | 1.77 | 0.190 | 0.15 | 0.66 | 0.30 | 0.010 |
+
+- **The bucket holds up for single varieties and for regional statistics.** Annual field yields from the two models are close, and farm variability (CV_L) and synchrony change little.
+- **It misses differences in rooting depth.** With roots resolved, the landrace mixture yields more and the shallow-rooted improved variety yields less, so the improved variety's advantage shrinks from 0.69 to 0.57 t/ha. In the column, the landraces take 13% (early), 24% (mid) and 34% (late) of their water from below 500 mm, the depth of the bucket's root zone, against 6% for the improved variety (first three years of four farms). The size of this effect depends on root traits that are illustrative here; measuring them is the first calibration step for the column.
+- **The top 500 mm stays wetter in the column** than the bucket's root zone (panel B), consistent with part of the uptake coming from deeper layers.
+
+![Bucket and Richards column compared](richards_vs_bucket.png)
+
+The column takes about 0.6 s per field-year (one core), against a few milliseconds for the bucket, so the scenario runs keep the bucket and the column serves as a benchmark.
+
+
 ## Limitations and future work
 
 The bucket does not reproduce one result of Puma et al. (2007). With coarse rainfall, their mean root-zone soil moisture falls, from 0.438 to 0.394 in Colorado and from 0.454 to 0.377 in Texas. In the bucket it barely moves (0.385 to 0.380, and 0.402 to 0.399). The paper explains the drop through the vertical profile. When rain arrives slowly, roots take up water near the surface before it can infiltrate to depth. A single well-mixed root zone cannot represent this. For the same reason, the temporal infiltration index $I_{I,t}$ is not a useful guide for the bucket: it falls below one at daily aggregation for this synthetic rainfall, but the bucket results stay accurate.
@@ -75,7 +96,7 @@ Two related limitations follow:
 - **Vertical redistribution.** Infiltration, redistribution and uptake within the root zone are lumped into one store. At daily resolution this is adequate for root-zone averages (section 2), but not for questions about water at particular depths.
 - **Rooting depth.** All varieties in a field share one root zone. Differences in rooting depth between varieties, which could matter for how mixtures share water, are not represented.
 
-Both could be examined with a one-dimensional Richards-equation model of soil water flow and root uptake, such as [SoilWaterFlow](https://github.com/mjpuma/SoilWaterFlow), the model used in Puma et al. (2007). The natural use is as a benchmark at a few calibrated sites, not as a replacement for the bucket in the scaling runs.
+Both can now be examined with [SoilWaterFlow](https://github.com/mjpuma/SoilWaterFlow), the Richards-equation model used in Puma et al. (2007), through `richards.py`. Section 3 makes a first comparison for rooting depth. Rerunning the rainfall-resolution experiment of section 2 with the soil column, to test whether it reproduces the drop in root-zone soil moisture that the bucket misses, is the natural next check. The column remains a benchmark at a few sites, not a replacement for the bucket in the scaling runs.
 
 The absolute levels of soil moisture also differ between the bucket and the Richards-equation results (for example a mean of 0.385 against 0.438 in Colorado). The synthetic rainfall and the bucket's lumped root zone both contribute, so only the effect of aggregation is compared above.
 

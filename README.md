@@ -1,6 +1,6 @@
 # tessera
 
-<p align="center"><img src="assets/tessera-icon.svg" alt="TESSERA model — crop diversity mosaic logo" width="240"></p>
+<p align="center"><img src="assets/tessera-logo.png" alt="TESSERA logo: a mosaic of fields of different sizes holding sorghum, maize, a cereal and water" width="560"></p>
 
 Do crop variety mixtures stabilize food supply beyond the field?
 
@@ -153,6 +153,19 @@ The soil water model is checked against published results in [`validation/`](val
 
 The bucket does not capture the effects of the vertical soil profile. These are discussed under limitations in the validation notes.
 
+### Soil water in depth: SoilWaterFlow
+
+[`richards.py`](richards.py) replaces the bucket with a one-dimensional Richards-equation soil column from [SoilWaterFlow](https://github.com/mjpuma/SoilWaterFlow), the model used in Puma et al. (2007). Water infiltrates, redistributes and drains through a 2 m column, and each variety takes up water through its own root profile, so varieties compete only for the water their roots can reach. `simulate_richards` takes the same inputs as `simulate` and returns the same dictionary, so the rest of the model runs unchanged:
+
+```python
+from richards import simulate_richards
+sim = simulate_richards(rain, shares, Soil())      # instead of simulate(rain, shares, Soil())
+```
+
+Rooting depths are new parameters (`ROOTS` in `richards.py`; illustrative: the landraces root deeper the longer their season, and the improved variety is the shallowest). [`validation/richards_vs_bucket.py`](validation/richards_vs_bucket.py) runs both soil models on the same 16 farms and 10 years of rain. Field yields from the two agree closely (panel A below). The column raises the landrace mixture's mean yield from 1.70 to 1.77 t/ha and lowers the uniform improved stand's from 2.40 to 2.34 t/ha, so the improved variety's advantage shrinks from 0.69 to 0.57 t/ha. That is the effect of rooting depth, which the bucket cannot represent; its size depends on the illustrative root traits. The column takes about 0.6 s per field-year, against a few milliseconds for the bucket.
+
+![Bucket and Richards column compared](validation/richards_vs_bucket.png)
+
 ![Laio et al. (2001) pdfs reproduced](validation/laio_fig8_pdfs.png)
 
 ![Puma et al. (2007) rainfall resolution reproduced](validation/puma_fig5_pdfs.png)
@@ -166,13 +179,22 @@ python run_experiments.py
 
 This writes `results.csv` and the figures in `figures/`. A full run takes about two minutes on a laptop.
 
+To use the soil column (`richards.py`), also install SoilWaterFlow:
+
+```
+pip install git+https://github.com/mjpuma/SoilWaterFlow
+python validation/richards_vs_bucket.py      # about 4 minutes on 2 cores
+```
+
 ## Files
 
 | File | Contents |
 |---|---|
 | `soilwater.py` | Point soil water balance (loss function of Laio et al. 2001) and its integrator |
 | `mixtures_model.py` | The model: rainfall generator, yields, disease, synchrony, markets |
-| `validation/` | Checks of the soil water model against Laio et al. (2001) and Puma et al. (2007) |
+| `richards.py` | Alternative soil: a Richards-equation column with a root profile for each variety (SoilWaterFlow) |
+| `validation/` | Checks of the soil water model against Laio et al. (2001) and Puma et al. (2007), and the bucket against the soil column |
+| `assets/` | Logo (SVG sources and PNG) |
 | `run_experiments.py` | Scenario experiments across rainfall correlation length, market integration and yield potential |
 | `make_figures.py` | Figures from `results.csv` |
 | `results.csv` | Results of the example runs |
@@ -183,6 +205,7 @@ This writes `results.csv` and the figures in `figures/`. A full run takes about 
 |---|---|
 | Variety traits (yield potential, stress threshold, wilting point, maturity, yield response) | `VARIETIES` in `mixtures_model.py` |
 | Soil | `Soil` |
+| Rooting depth and root profile of each variety (soil column only) | `ROOTS` in `richards.py` |
 | Rainfall climatology, ENSO loading, correlation lengths | `Climate` |
 | Pest and disease losses | `Disease` |
 | Storage, demand elasticity, market integration, household need and cash | `Market` |
@@ -190,7 +213,7 @@ This writes `results.csv` and the figures in `figures/`. A full run takes about 
 
 ## Known simplifications
 
-- One well-mixed root zone. Vertical redistribution and differences in rooting depth between varieties are not represented. A one-dimensional soil water flow model such as [SoilWaterFlow](https://github.com/mjpuma/SoilWaterFlow) could be used as a benchmark at a few sites (see [`validation/`](validation/)).
+- One well-mixed root zone in the main runs. Vertical redistribution and differences in rooting depth between varieties are represented only with the soil column in `richards.py`, which is too slow for the full scenario runs; it is used as a benchmark (see [`validation/`](validation/)).
 - Fixed planting dates. In practice farmers wait for the rains to start.
 - Varieties in a mixture interact only through shared soil water. There is no light competition and no disease dilution within the field.
 - One regional market with a simple storage rule. The competitive storage model would be the standard alternative.

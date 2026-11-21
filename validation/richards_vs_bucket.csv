@@ -1,0 +1,5 @@
+scenario,model,mean_yield,CV_L,CV_R,phi,p_below_80pct_of_mean,worst_year_regional,transp_share,evap_share,drain_share,runoff_share,wb_error_mm
+Uniform improved,bucket,2.3953,0.2017,0.0800,0.1571,0.1389,0.8893,0.6960,0.2412,0.0526,0.0000,-0.0000
+Uniform improved,Richards,2.3385,0.1949,0.0754,0.1495,0.1458,0.8919,0.6508,0.2953,0.0148,0.0000,0.0021
+Landrace mixture,bucket,1.7042,0.2016,0.0806,0.1598,0.1667,0.8884,0.6865,0.2365,0.0667,0.0000,-0.0000
+Landrace mixture,Richards,1.7699,0.1899,0.0740,0.1520,0.1528,0.8974,0.6590,0.2951,0.0096,0.0000,0.0036
